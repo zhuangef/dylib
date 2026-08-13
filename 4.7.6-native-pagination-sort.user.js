@@ -1070,19 +1070,21 @@
             .bgsh-pt > img {
                 display: block !important;
                 flex: 0 0 auto !important;
-                width: 100% !important;
-                max-width: var(--bgsh-preview-size, 180px) !important;
+                width: auto !important;
+                max-width: min(100%, var(--bgsh-preview-size, 180px)) !important;
                 height: auto !important;
-                aspect-ratio: 4 / 3 !important;
+                max-height: var(--bgsh-preview-max-height, 180px) !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                object-fit: cover !important;
+                object-fit: contain !important;
                 vertical-align: top !important;
             }
             .bgsh-favorite-preview > img {
-                width: var(--bgsh-preview-size, 180px) !important;
-                height: var(--bgsh-preview-height, 135px) !important;
-                object-fit: cover !important;
+                width: auto !important;
+                max-width: min(100%, var(--bgsh-preview-size, 180px)) !important;
+                height: auto !important;
+                max-height: var(--bgsh-preview-max-height, 180px) !important;
+                object-fit: contain !important;
                 flex: 0 0 auto !important;
             }
             .bgsh-my-post-preview-row > td {
@@ -2631,7 +2633,7 @@
         var slotCount = Math.min(previewCount, allUrls.length);
         for (var i = 0; i < slotCount; i++) {
             var img = createElement("img");
-            Object.assign(img.style, { display: "block", width: "var(--bgsh-preview-size, 180px)", height: "var(--bgsh-preview-height, 135px)", margin: "0", padding: "0", border: "1px solid #eaeaea", borderRadius: "6px", objectFit: "cover", cursor: "zoom-in", boxSizing: "border-box" });
+            Object.assign(img.style, { display: "block", width: "auto", maxWidth: "min(100%, var(--bgsh-preview-size, 180px))", height: "auto", maxHeight: "var(--bgsh-preview-max-height, 180px)", margin: "0", padding: "0", border: "1px solid #eaeaea", borderRadius: "6px", objectFit: "contain", cursor: "zoom-in", boxSizing: "border-box" });
             container.appendChild(img);
             imageEls.push(img);
         }
@@ -4136,7 +4138,7 @@
             const img = document.createElement('img');
             img.src = url;
             img.loading = 'lazy';
-            img.style.cssText = 'display:block;width:' + ps + 'px;height:' + Math.round(ps * 0.75) + 'px;border-radius:4px;cursor:pointer;object-fit:cover;border:1px solid rgba(0,0,0,.08);margin:0;';
+            img.style.cssText = 'display:block;width:auto;max-width:min(100%,' + ps + 'px);height:auto;max-height:' + ps + 'px;border-radius:4px;cursor:pointer;object-fit:contain;border:1px solid rgba(0,0,0,.08);margin:0;box-sizing:border-box;';
             img.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const ov = document.createElement('div');
@@ -4384,7 +4386,7 @@
                 var img = document.createElement('img');
                 img.src = url;
                 img.loading = 'lazy';
-                img.style.cssText = 'width:' + ps + 'px;height:' + Math.round(ps * 0.75) + 'px;border-radius:8px;cursor:pointer;object-fit:cover;border:1px solid #eaeaea;';
+                img.style.cssText = 'display:block;width:auto;max-width:min(100%,' + ps + 'px);height:auto;max-height:' + ps + 'px;border-radius:8px;cursor:pointer;object-fit:contain;border:1px solid #eaeaea;box-sizing:border-box;';
                 img.addEventListener('click', function(e) {
                     e.stopPropagation();
                     var ov = document.createElement('div');
@@ -5171,116 +5173,159 @@
     // 定期清理缓存
     setInterval(cleanSearchCache, 3600000); // 每小时检查一次
 
-    function filterSearchResults() {
-        if (!window.location.href.match(/search\.php.*(?:searchid|srchtxt|mod=forum)/)) return;
-
-        var savedOpts = JSON.parse(GM_getValue("bgshSearchOpts", "[]")) || [];
-        if (savedOpts.length === 0) return;
-
-        function hideNonMatching() {
-            var items = document.querySelectorAll(
-                'ul.searchresult > li, .forumcontrol + table tr, #threadlist tr, ' +
-                'div.threadlist > table > tbody > tr, .tl .bm_c li'
-            );
-
-            if (items.length === 0) {
-                items = document.querySelectorAll('li.pbw, .threadlist tr, table.threadlist tr, [id^="thread_"]');
+    function getSearchResultFilterItems() {
+        var items = document.querySelectorAll('ul.searchresult > li, .forumcontrol + table tr, #threadlist tr, div.threadlist > table > tbody > tr, .tl .bm_c li');
+        if (items.length === 0) items = document.querySelectorAll('li.pbw, .threadlist tr, table.threadlist tr, [id^="thread_"]');
+        return Array.from(items).filter(function(item) {
+            if (item.tagName === 'TR' && item.querySelector('th')) {
+                var headerText = item.textContent.trim();
+                if (headerText.indexOf('标题') >= 0 || headerText.indexOf('作者') >= 0) return false;
             }
+            return true;
+        });
+    }
 
-            var hiddenCount = 0;
-
-            items.forEach(function(item) {
-                if (item.style.display === 'none') return;
-                if (item.tagName === 'TR' && item.querySelector('th')) {
-                    var headerText = item.textContent.trim();
-                    if (headerText.indexOf('标题') >= 0 || headerText.indexOf('作者') >= 0) return;
-                }
-
-                var forumLink = item.querySelector(
-                    'a[href*="fid="], a[href*="forum-"], ' +
-                    'a[href*="mod=forumdisplay"]'
-                );
-                if (!forumLink) {
-                    forumLink = item.querySelector('[class*="board"], [class*="forum"], .xg2 a[href*="forum"]');
-                }
-
-                if (forumLink) {
-                    var match = forumLink.href.match(/[?&]fid=(\d+)|forum-(\d+)-/);
-                    if (match) {
-                        var fid = match[1] || match[2];
-                        if (savedOpts.indexOf(fid) === -1) {
-                            item.style.display = 'none';
-                            item.dataset.bgshBoardFiltered = "1";
-                            hiddenCount++;
-                        }
-                    } else {
-                        var linkText = forumLink.textContent.trim();
-                        var matchedFid = null;
-                        for (var gi = 0; gi < SEARCH_BOARD_GROUPS.length; gi++) {
-                            var group = SEARCH_BOARD_GROUPS[gi];
-                            for (var fi = 0; fi < group.fids.length; fi++) {
-                                var gfid = String(group.fids[fi]);
-                                if (savedOpts.indexOf(gfid) >= 0) continue;
-                                var gname = getBoardName(group.fids[fi]);
-                                if (linkText.indexOf(gname) >= 0 || item.textContent.indexOf(gname) >= 0) {
-                                    matchedFid = gfid;
-                                    break;
-                                }
-                            }
-                            if (matchedFid) break;
-                        }
-                        if (matchedFid) {
-                            item.style.display = 'none';
-                            item.dataset.bgshBoardFiltered = "1";
-                            hiddenCount++;
-                        }
-                    }
-                } else {
-                    var itemText = item.textContent;
-                    var shouldHide = false;
-                    for (var gi2 = 0; gi2 < SEARCH_BOARD_GROUPS.length; gi2++) {
-                        var group2 = SEARCH_BOARD_GROUPS[gi2];
-                        for (var fi2 = 0; fi2 < group2.fids.length; fi2++) {
-                            var gfid2 = String(group2.fids[fi2]);
-                            if (savedOpts.indexOf(gfid2) >= 0) continue;
-                            var gname2 = getBoardName(group2.fids[fi2]);
-                            if (itemText.indexOf(gname2) >= 0) {
-                                shouldHide = true;
-                                break;
-                            }
-                        }
-                        if (shouldHide) break;
-                    }
-                    if (shouldHide) {
-                        item.style.display = 'none';
-                        item.dataset.bgshBoardFiltered = "1";
-                        hiddenCount++;
-                    }
-                }
-            });
-
-            if (hiddenCount > 0) {
-                console.log("[98T Filter] 已隐藏 " + hiddenCount + " 个非选中板块的帖子");
+    function getSearchResultItemFid(item) {
+        if (!item) return '';
+        var forumLink = item.querySelector('a[href*="fid="], a[href*="forum-"], a[href*="mod=forumdisplay"]') ||
+            item.querySelector('[class*="board"], [class*="forum"], .xg2 a[href*="forum"]');
+        if (forumLink) {
+            var match = (forumLink.href || '').match(/[?&]fid=(\d+)|forum-(\d+)-/);
+            if (match) return String(match[1] || match[2]);
+        }
+        var itemText = item.textContent || '';
+        for (var gi = 0; gi < SEARCH_BOARD_GROUPS.length; gi++) {
+            var group = SEARCH_BOARD_GROUPS[gi];
+            for (var fi = 0; fi < group.fids.length; fi++) {
+                var fid = String(group.fids[fi]);
+                var name = getBoardName(fid);
+                if (name && itemText.indexOf(name) >= 0) return fid;
             }
         }
+        return '';
+    }
 
-        setTimeout(hideNonMatching, 300);
+    function getSearchResultFilterSelection() {
+        try {
+            var saved = JSON.parse(GM_getValue("bgshSearchResultFilterFids", "null"));
+            if (Array.isArray(saved)) return saved.map(String);
+        } catch (error) {}
+        return JSON.parse(GM_getValue("bgshSearchOpts", "[]")) || [];
+    }
 
-        var observer = new MutationObserver(function(mutations) {
-            var hasRelevantChanges = mutations.some(function(m) {
-                return m.type === 'childList' && m.addedNodes.length > 0;
-            });
-            if (hasRelevantChanges) {
-                clearTimeout(window._98tFilterTimer);
-                window._98tFilterTimer = setTimeout(hideNonMatching, 200);
+    function applySearchResultBoardFilter(selectedFids) {
+        var selected = new Set((selectedFids || []).map(String));
+        var useFilter = selected.size > 0;
+        var items = getSearchResultFilterItems();
+        var visibleCount = 0, hiddenCount = 0;
+        items.forEach(function(item) {
+            var fid = getSearchResultItemFid(item);
+            var show = !useFilter || !fid || selected.has(fid);
+            if (show) {
+                if (item.dataset.bgshBoardFiltered === "1") item.style.display = item.dataset.bgshOriginalDisplay || '';
+                delete item.dataset.bgshBoardFiltered;
+                visibleCount++;
+            } else {
+                if (item.dataset.bgshBoardFiltered !== "1") item.dataset.bgshOriginalDisplay = item.style.display || '';
+                item.style.display = 'none';
+                item.dataset.bgshBoardFiltered = "1";
+                hiddenCount++;
             }
         });
+        var countEl = document.getElementById('bgshSearchResultFilterCount');
+        if (countEl) countEl.textContent = '显示 ' + visibleCount + '/' + items.length + ' 条，隐藏 ' + hiddenCount + ' 条';
+    }
 
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        window.addEventListener('load', function() {
-            setTimeout(hideNonMatching, 500);
+    function initSearchResultBoardFilter() {
+        if (!window.location.href.match(/search\.php.*(?:searchid|srchtxt|mod=forum)/)) return;
+        if (document.getElementById('bgsh-search-result-board-filter')) {
+            applySearchResultBoardFilter(getSearchResultFilterSelection());
+            return;
+        }
+        var availableFids = [];
+        getSearchResultFilterItems().forEach(function(item) {
+            var fid = getSearchResultItemFid(item);
+            if (fid && availableFids.indexOf(fid) === -1) availableFids.push(fid);
         });
+        var groupHtml = '';
+        SEARCH_BOARD_GROUPS.forEach(function(group) {
+            var fids = group.fids.map(String).filter(function(fid) { return availableFids.length === 0 || availableFids.indexOf(fid) !== -1; });
+            if (!fids.length) return;
+            groupHtml += '<div class="bgsh-board-filter-section"><div class="bgsh-board-filter-section-title">' + escapeSearchHtml(group.label) + '</div><div class="bgsh-board-filter-items">';
+            fids.forEach(function(fid) {
+                groupHtml += '<label><input type="checkbox" class="bgsh-search-result-board-cb" value="' + fid + '"> ' + escapeSearchHtml(getBoardName(fid)) + '</label>';
+            });
+            groupHtml += '</div></div>';
+        });
+        if (!groupHtml) return;
+        var isCollapsed = GM_getValue('bgsh_search_result_filter_collapsed', false);
+        var filterBar = document.createElement('div');
+        filterBar.className = 'bgsh-board-filter';
+        filterBar.id = 'bgsh-search-result-board-filter';
+        filterBar.innerHTML = '<div class="bgsh-board-filter-header"><span>🔎 搜索结果板块筛选 <span id="bgshSearchResultFilterCount" class="bgsh-board-filter-count"></span></span><span class="bgsh-board-filter-toggle">' + (isCollapsed ? '展开 ▼' : '收起 ▲') + '</span></div>' +
+            '<div class="bgsh-board-filter-body' + (isCollapsed ? ' collapsed' : '') + '"><div class="bgsh-board-filter-groups">' +
+            '<button class="bgsh-board-filter-btn small" id="bgshSearchResultFilterAll">🌐 全部显示</button>' +
+            '<button class="bgsh-board-filter-btn small" id="bgshSearchResultFilterNone">❌ 清除筛选</button>' +
+            '<button class="bgsh-board-filter-btn small" id="bgshSearchResultFilterInvert">🔁 反选</button></div>' + groupHtml + '</div>';
+        var mount = document.querySelector('#threadlist, .searchresult, .tl, .bm_c, #ct, .ct, #wp, .wp');
+        if (mount && mount.parentNode) mount.parentNode.insertBefore(filterBar, mount);
+        else document.body.insertBefore(filterBar, document.body.firstChild);
+        var body = filterBar.querySelector('.bgsh-board-filter-body');
+        var toggle = filterBar.querySelector('.bgsh-board-filter-toggle');
+        filterBar.querySelector('.bgsh-board-filter-header').addEventListener('click', function(e) {
+            if (e.target.closest('button') || e.target.closest('label')) return;
+            var nowCollapsed = body.classList.toggle('collapsed');
+            toggle.textContent = nowCollapsed ? '展开 ▼' : '收起 ▲';
+            GM_setValue('bgsh_search_result_filter_collapsed', nowCollapsed);
+        });
+        function syncLabels() {
+            filterBar.querySelectorAll('.bgsh-search-result-board-cb').forEach(function(cb) { cb.closest('label').classList.toggle('checked', cb.checked); });
+        }
+        function selectedFromUi() {
+            return Array.from(filterBar.querySelectorAll('.bgsh-search-result-board-cb:checked')).map(function(cb) { return cb.value; });
+        }
+        function applyFromUi() {
+            var selected = selectedFromUi();
+            GM_setValue("bgshSearchResultFilterFids", JSON.stringify(Array.from(new Set(selected))));
+            syncLabels();
+            applySearchResultBoardFilter(selected);
+        }
+        var selectedSet = new Set(getSearchResultFilterSelection().map(String));
+        filterBar.querySelectorAll('.bgsh-search-result-board-cb').forEach(function(cb) {
+            cb.checked = selectedSet.size === 0 || selectedSet.has(cb.value);
+            cb.addEventListener('change', applyFromUi);
+        });
+        filterBar.querySelector('#bgshSearchResultFilterAll').addEventListener('click', function(e) {
+            e.stopPropagation();
+            filterBar.querySelectorAll('.bgsh-search-result-board-cb').forEach(function(cb) { cb.checked = true; });
+            applyFromUi();
+        });
+        filterBar.querySelector('#bgshSearchResultFilterNone').addEventListener('click', function(e) {
+            e.stopPropagation();
+            filterBar.querySelectorAll('.bgsh-search-result-board-cb').forEach(function(cb) { cb.checked = false; });
+            applyFromUi();
+        });
+        filterBar.querySelector('#bgshSearchResultFilterInvert').addEventListener('click', function(e) {
+            e.stopPropagation();
+            filterBar.querySelectorAll('.bgsh-search-result-board-cb').forEach(function(cb) { cb.checked = !cb.checked; });
+            applyFromUi();
+        });
+        syncLabels();
+        applySearchResultBoardFilter(selectedFromUi());
+    }
+
+    function filterSearchResults() {
+        if (!window.location.href.match(/search\.php.*(?:searchid|srchtxt|mod=forum)/)) return;
+        setTimeout(function() { initSearchResultBoardFilter(); applySearchResultBoardFilter(getSearchResultFilterSelection()); }, 300);
+        if (window._98tSearchResultFilterObserver) return;
+        window._98tSearchResultFilterObserver = new MutationObserver(function(mutations) {
+            if (mutations.some(function(m) { return m.type === 'childList' && m.addedNodes.length > 0; })) {
+                clearTimeout(window._98tFilterTimer);
+                window._98tFilterTimer = setTimeout(function() { initSearchResultBoardFilter(); applySearchResultBoardFilter(getSearchResultFilterSelection()); }, 200);
+            }
+        });
+        window._98tSearchResultFilterObserver.observe(document.body, { childList: true, subtree: true });
+        window.addEventListener('load', function() { setTimeout(function() { initSearchResultBoardFilter(); applySearchResultBoardFilter(getSearchResultFilterSelection()); }, 500); });
     }
     // #endregion
 
@@ -7334,8 +7379,8 @@
             pvBtn.id = "bgshPreviewSizeBtn";
             pvBtn.className = "bgsh-customBtn";
             pvBtn.style.cssText = "font-size:11px;min-width:40px;padding:4px 8px;";
-            pvBtn.textContent = "\uD83D\uDDBC\uFE0F \u7F29\u653E" + pvSize + "x" + Math.round(pvSize * 0.75);
-            pvBtn.title = "\u7B49\u6BD4\u4F8B\u7F29\u653E\uFF0C\u5355\u51FB\u5207\u6362\uFF0C\u53CC\u51FB\u8F93\u5165\uFF0C\u6EDA\u8F6E\u5FAE\u8C03";
+            pvBtn.textContent = "\uD83D\uDDBC\uFE0F \u6700\u5927" + pvSize + "px";
+            pvBtn.title = "\u8BBE\u7F6E\u9884\u89C8\u56FE\u6700\u5927\u5BBD\u9AD8\uFF0C\u6309\u539F\u56FE\u6BD4\u4F8B\u663E\u793A\uFF0C\u5355\u51FB\u5207\u6362\uFF0C\u53CC\u51FB\u8F93\u5165\uFF0C\u6EDA\u8F6E\u5FAE\u8C03";
             var previewClickTimer = null;
             pvBtn.addEventListener("click", function(e) {
                 if (e.detail > 1) return;
@@ -7350,7 +7395,7 @@
             });
             pvBtn.addEventListener("dblclick", function() {
                 clearTimeout(previewClickTimer);
-                var pvinput = prompt("\u8F93\u5165\u7F29\u653E\u5C3A\u5BF8(px)\uFF0C80~400\uFF0C\u9AD8\u5EA6\u81EA\u9002\u5E94:", getPreviewSize());
+                var pvinput = prompt("\u8F93\u5165\u9884\u89C8\u56FE\u6700\u5927\u5BBD\u9AD8(px)\uFF0C80~400\uFF0C\u6309\u539F\u56FE\u6BD4\u4F8B\u663E\u793A:", getPreviewSize());
                 if (pvinput !== null) {
                     var pvval = parseInt(pvinput, 10);
                     if (!isNaN(pvval) && pvval >= 80 && pvval <= 400) {
@@ -7460,11 +7505,10 @@
     }
     function applyPreviewSize(val) {
         val = normalizePreviewSize(val);
-        var height = Math.round(val * 0.75);
         document.documentElement.style.setProperty('--bgsh-preview-size', val + 'px');
-        document.documentElement.style.setProperty('--bgsh-preview-height', height + 'px');
+        document.documentElement.style.setProperty('--bgsh-preview-max-height', val + 'px');
         var button = document.getElementById('bgshPreviewSizeBtn');
-        if (button) button.textContent = '🖼️ 缩放' + val + 'x' + height;
+        if (button) button.textContent = '🖼️ 最大' + val + 'px';
     }
     function setPreviewSize(val) {
         val = normalizePreviewSize(val);
