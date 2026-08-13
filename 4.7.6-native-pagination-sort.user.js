@@ -1070,19 +1070,21 @@
             .bgsh-pt > img {
                 display: block !important;
                 flex: 0 0 auto !important;
-                width: 100% !important;
-                max-width: var(--bgsh-preview-size, 180px) !important;
+                width: auto !important;
+                max-width: min(100%, var(--bgsh-preview-size, 180px)) !important;
                 height: auto !important;
-                aspect-ratio: 4 / 3 !important;
+                max-height: var(--bgsh-preview-max-height, 180px) !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                object-fit: cover !important;
+                object-fit: contain !important;
                 vertical-align: top !important;
             }
             .bgsh-favorite-preview > img {
-                width: var(--bgsh-preview-size, 180px) !important;
-                height: var(--bgsh-preview-height, 135px) !important;
-                object-fit: cover !important;
+                width: auto !important;
+                max-width: min(100%, var(--bgsh-preview-size, 180px)) !important;
+                height: auto !important;
+                max-height: var(--bgsh-preview-max-height, 180px) !important;
+                object-fit: contain !important;
                 flex: 0 0 auto !important;
             }
             .bgsh-my-post-preview-row > td {
@@ -2631,7 +2633,7 @@
         var slotCount = Math.min(previewCount, allUrls.length);
         for (var i = 0; i < slotCount; i++) {
             var img = createElement("img");
-            Object.assign(img.style, { display: "block", width: "var(--bgsh-preview-size, 180px)", height: "var(--bgsh-preview-height, 135px)", margin: "0", padding: "0", border: "1px solid #eaeaea", borderRadius: "6px", objectFit: "cover", cursor: "zoom-in", boxSizing: "border-box" });
+            Object.assign(img.style, { display: "block", width: "auto", maxWidth: "min(100%, var(--bgsh-preview-size, 180px))", height: "auto", maxHeight: "var(--bgsh-preview-max-height, 180px)", margin: "0", padding: "0", border: "1px solid #eaeaea", borderRadius: "6px", objectFit: "contain", cursor: "zoom-in", boxSizing: "border-box" });
             container.appendChild(img);
             imageEls.push(img);
         }
@@ -4136,7 +4138,7 @@
             const img = document.createElement('img');
             img.src = url;
             img.loading = 'lazy';
-            img.style.cssText = 'display:block;width:' + ps + 'px;height:' + Math.round(ps * 0.75) + 'px;border-radius:4px;cursor:pointer;object-fit:cover;border:1px solid rgba(0,0,0,.08);margin:0;';
+            img.style.cssText = 'display:block;width:auto;max-width:min(100%,' + ps + 'px);height:auto;max-height:' + ps + 'px;border-radius:4px;cursor:pointer;object-fit:contain;border:1px solid rgba(0,0,0,.08);margin:0;box-sizing:border-box;';
             img.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const ov = document.createElement('div');
@@ -4384,7 +4386,7 @@
                 var img = document.createElement('img');
                 img.src = url;
                 img.loading = 'lazy';
-                img.style.cssText = 'width:' + ps + 'px;height:' + Math.round(ps * 0.75) + 'px;border-radius:8px;cursor:pointer;object-fit:cover;border:1px solid #eaeaea;';
+                img.style.cssText = 'display:block;width:auto;max-width:min(100%,' + ps + 'px);height:auto;max-height:' + ps + 'px;border-radius:8px;cursor:pointer;object-fit:contain;border:1px solid #eaeaea;box-sizing:border-box;';
                 img.addEventListener('click', function(e) {
                     e.stopPropagation();
                     var ov = document.createElement('div');
@@ -7334,8 +7336,8 @@
             pvBtn.id = "bgshPreviewSizeBtn";
             pvBtn.className = "bgsh-customBtn";
             pvBtn.style.cssText = "font-size:11px;min-width:40px;padding:4px 8px;";
-            pvBtn.textContent = "\uD83D\uDDBC\uFE0F \u7F29\u653E" + pvSize + "x" + Math.round(pvSize * 0.75);
-            pvBtn.title = "\u7B49\u6BD4\u4F8B\u7F29\u653E\uFF0C\u5355\u51FB\u5207\u6362\uFF0C\u53CC\u51FB\u8F93\u5165\uFF0C\u6EDA\u8F6E\u5FAE\u8C03";
+            pvBtn.textContent = "\uD83D\uDDBC\uFE0F \u6700\u5927" + pvSize + "px";
+            pvBtn.title = "\u8BBE\u7F6E\u9884\u89C8\u56FE\u6700\u5927\u5BBD\u9AD8\uFF0C\u6309\u539F\u56FE\u6BD4\u4F8B\u663E\u793A\uFF0C\u5355\u51FB\u5207\u6362\uFF0C\u53CC\u51FB\u8F93\u5165\uFF0C\u6EDA\u8F6E\u5FAE\u8C03";
             var previewClickTimer = null;
             pvBtn.addEventListener("click", function(e) {
                 if (e.detail > 1) return;
@@ -7350,7 +7352,7 @@
             });
             pvBtn.addEventListener("dblclick", function() {
                 clearTimeout(previewClickTimer);
-                var pvinput = prompt("\u8F93\u5165\u7F29\u653E\u5C3A\u5BF8(px)\uFF0C80~400\uFF0C\u9AD8\u5EA6\u81EA\u9002\u5E94:", getPreviewSize());
+                var pvinput = prompt("\u8F93\u5165\u9884\u89C8\u56FE\u6700\u5927\u5BBD\u9AD8(px)\uFF0C80~400\uFF0C\u6309\u539F\u56FE\u6BD4\u4F8B\u663E\u793A:", getPreviewSize());
                 if (pvinput !== null) {
                     var pvval = parseInt(pvinput, 10);
                     if (!isNaN(pvval) && pvval >= 80 && pvval <= 400) {
@@ -7460,11 +7462,10 @@
     }
     function applyPreviewSize(val) {
         val = normalizePreviewSize(val);
-        var height = Math.round(val * 0.75);
         document.documentElement.style.setProperty('--bgsh-preview-size', val + 'px');
-        document.documentElement.style.setProperty('--bgsh-preview-height', height + 'px');
+        document.documentElement.style.setProperty('--bgsh-preview-max-height', val + 'px');
         var button = document.getElementById('bgshPreviewSizeBtn');
-        if (button) button.textContent = '🖼️ 缩放' + val + 'x' + height;
+        if (button) button.textContent = '🖼️ 最大' + val + 'px';
     }
     function setPreviewSize(val) {
         val = normalizePreviewSize(val);
