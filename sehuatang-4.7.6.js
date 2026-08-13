@@ -1291,6 +1291,114 @@
             }
             [data-bgsh-theme="dark"] .bgsh-board-filter-count { color: #666; }
 
+
+
+            /* ----- 搜索结果页右侧板块实时筛选栏 ----- */
+            .bgsh-search-result-filter {
+                position: fixed;
+                top: 240px;
+                right: max(18px, 2vw);
+                width: min(24vw, 360px);
+                max-width: calc(100vw - 36px);
+                max-height: calc(100vh - 280px);
+                z-index: 99998;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
+                border-radius: 18px;
+                border: 1px solid rgba(0,0,0,0.08);
+                background: rgba(255,255,255,0.82);
+                box-shadow: 0 12px 38px rgba(31,45,61,0.16);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                font-family: var(--bgsh-font);
+                box-sizing: border-box;
+            }
+            [data-bgsh-theme="dark"] .bgsh-search-result-filter {
+                background: rgba(26,26,30,0.86);
+                border-color: var(--bgsh-border-dark);
+                box-shadow: 0 12px 42px rgba(0,0,0,0.45);
+            }
+            .bgsh-search-result-filter-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--bgsh-text-light);
+                cursor: move;
+                user-select: none;
+            }
+            [data-bgsh-theme="dark"] .bgsh-search-result-filter-header { color: var(--bgsh-text-dark); }
+            .bgsh-search-result-filter-actions {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .bgsh-search-result-filter-actions button,
+            .bgsh-search-result-filter-collapse {
+                border: 0;
+                border-radius: 12px;
+                padding: 4px 8px;
+                background: rgba(247,151,30,0.12);
+                color: #9a5a05;
+                font-size: 11px;
+                cursor: pointer;
+            }
+            .bgsh-search-result-filter-actions button:hover,
+            .bgsh-search-result-filter-collapse:hover { background: rgba(247,151,30,0.22); }
+            .bgsh-search-result-filter-body {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 7px 12px;
+                overflow: auto;
+                padding-right: 4px;
+            }
+            .bgsh-search-result-filter.collapsed .bgsh-search-result-filter-body,
+            .bgsh-search-result-filter.collapsed .bgsh-search-result-filter-actions,
+            .bgsh-search-result-filter.collapsed .bgsh-search-result-filter-count { display: none; }
+            .bgsh-search-result-filter.collapsed { width: auto; max-height: none; }
+            .bgsh-search-result-filter-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+                color: #666;
+                font-size: 12px;
+                line-height: 1.35;
+                cursor: pointer;
+                user-select: none;
+            }
+            [data-bgsh-theme="dark"] .bgsh-search-result-filter-item { color: #bbb; }
+            .bgsh-search-result-filter-item input {
+                width: 16px;
+                height: 16px;
+                margin: 0;
+                accent-color: var(--bgsh-primary);
+                flex: 0 0 auto;
+            }
+            .bgsh-search-result-filter-label {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .bgsh-search-result-filter-count {
+                color: #999;
+                font-size: 11px;
+                line-height: 1.4;
+            }
+            @media (max-width: 980px) {
+                .bgsh-search-result-filter {
+                    position: static;
+                    width: auto;
+                    max-height: none;
+                    margin: 8px 12px 12px auto;
+                }
+            }
+
             /* ----- 主题分类筛选栏 (新增) ----- */
             .bgsh-type-filter {
                 background: var(--bgsh-bg-light);
@@ -5175,114 +5283,158 @@
 
     function filterSearchResults() {
         if (!window.location.href.match(/search\.php.*(?:searchid|srchtxt|mod=forum)/)) return;
+        if (document.getElementById('bgsh-search-result-filter')) return;
 
-        var savedOpts = JSON.parse(GM_getValue("bgshSearchOpts", "[]")) || [];
-        if (savedOpts.length === 0) return;
-
-        function hideNonMatching() {
+        function getSearchResultItems() {
             var items = document.querySelectorAll(
                 'ul.searchresult > li, .forumcontrol + table tr, #threadlist tr, ' +
                 'div.threadlist > table > tbody > tr, .tl .bm_c li'
             );
-
             if (items.length === 0) {
                 items = document.querySelectorAll('li.pbw, .threadlist tr, table.threadlist tr, [id^="thread_"]');
             }
-
-            var hiddenCount = 0;
-
-            items.forEach(function(item) {
-                if (item.style.display === 'none') return;
+            return Array.from(items).filter(function(item) {
                 if (item.tagName === 'TR' && item.querySelector('th')) {
                     var headerText = item.textContent.trim();
-                    if (headerText.indexOf('标题') >= 0 || headerText.indexOf('作者') >= 0) return;
+                    if (headerText.indexOf('标题') >= 0 || headerText.indexOf('作者') >= 0) return false;
                 }
-
-                var forumLink = item.querySelector(
-                    'a[href*="fid="], a[href*="forum-"], ' +
-                    'a[href*="mod=forumdisplay"]'
-                );
-                if (!forumLink) {
-                    forumLink = item.querySelector('[class*="board"], [class*="forum"], .xg2 a[href*="forum"]');
-                }
-
-                if (forumLink) {
-                    var match = forumLink.href.match(/[?&]fid=(\d+)|forum-(\d+)-/);
-                    if (match) {
-                        var fid = match[1] || match[2];
-                        if (savedOpts.indexOf(fid) === -1) {
-                            item.style.display = 'none';
-                            item.dataset.bgshBoardFiltered = "1";
-                            hiddenCount++;
-                        }
-                    } else {
-                        var linkText = forumLink.textContent.trim();
-                        var matchedFid = null;
-                        for (var gi = 0; gi < SEARCH_BOARD_GROUPS.length; gi++) {
-                            var group = SEARCH_BOARD_GROUPS[gi];
-                            for (var fi = 0; fi < group.fids.length; fi++) {
-                                var gfid = String(group.fids[fi]);
-                                if (savedOpts.indexOf(gfid) >= 0) continue;
-                                var gname = getBoardName(group.fids[fi]);
-                                if (linkText.indexOf(gname) >= 0 || item.textContent.indexOf(gname) >= 0) {
-                                    matchedFid = gfid;
-                                    break;
-                                }
-                            }
-                            if (matchedFid) break;
-                        }
-                        if (matchedFid) {
-                            item.style.display = 'none';
-                            item.dataset.bgshBoardFiltered = "1";
-                            hiddenCount++;
-                        }
-                    }
-                } else {
-                    var itemText = item.textContent;
-                    var shouldHide = false;
-                    for (var gi2 = 0; gi2 < SEARCH_BOARD_GROUPS.length; gi2++) {
-                        var group2 = SEARCH_BOARD_GROUPS[gi2];
-                        for (var fi2 = 0; fi2 < group2.fids.length; fi2++) {
-                            var gfid2 = String(group2.fids[fi2]);
-                            if (savedOpts.indexOf(gfid2) >= 0) continue;
-                            var gname2 = getBoardName(group2.fids[fi2]);
-                            if (itemText.indexOf(gname2) >= 0) {
-                                shouldHide = true;
-                                break;
-                            }
-                        }
-                        if (shouldHide) break;
-                    }
-                    if (shouldHide) {
-                        item.style.display = 'none';
-                        item.dataset.bgshBoardFiltered = "1";
-                        hiddenCount++;
-                    }
-                }
+                return !!item.textContent.trim();
             });
-
-            if (hiddenCount > 0) {
-                console.log("[98T Filter] 已隐藏 " + hiddenCount + " 个非选中板块的帖子");
-            }
         }
 
-        setTimeout(hideNonMatching, 300);
+        function findItemFid(item) {
+            var forumLink = item.querySelector(
+                'a[href*="fid="], a[href*="forum-"], a[href*="mod=forumdisplay"]'
+            );
+            if (!forumLink) {
+                forumLink = item.querySelector('[class*="board"], [class*="forum"], .xg2 a[href*="forum"]');
+            }
+            if (forumLink && forumLink.href) {
+                var match = forumLink.href.match(/[?&]fid=(\d+)|forum-(\d+)-/);
+                if (match) return String(match[1] || match[2]);
+            }
 
-        var observer = new MutationObserver(function(mutations) {
-            var hasRelevantChanges = mutations.some(function(m) {
-                return m.type === 'childList' && m.addedNodes.length > 0;
+            var text = item.textContent || '';
+            for (var i = 0; i < DEFAULT_TID_OPTIONS.length; i++) {
+                var fid = String(DEFAULT_TID_OPTIONS[i].value);
+                var name = getBoardName(fid);
+                if (name && text.indexOf(name) >= 0) return fid;
+            }
+            return '';
+        }
+
+        function collectBoardOptions(items) {
+            var seen = {};
+            var options = [];
+            items.forEach(function(item) {
+                var fid = findItemFid(item);
+                item.dataset.bgshSearchResultFid = fid;
+                if (!fid || seen[fid]) return;
+                seen[fid] = true;
+                options.push({ fid: fid, label: getBoardName(fid) || ('fid=' + fid) });
             });
-            if (hasRelevantChanges) {
-                clearTimeout(window._98tFilterTimer);
-                window._98tFilterTimer = setTimeout(hideNonMatching, 200);
+            options.sort(function(a, b) { return a.label.localeCompare(b.label, 'zh-Hans-CN'); });
+            return options;
+        }
+
+        function getStoredSelected(availableFids) {
+            var selected;
+            try {
+                selected = JSON.parse(GM_getValue('bgsh_search_result_filter_fids', '[]')) || [];
+            } catch (e) { selected = []; }
+            if (selected.length === 0) {
+                try {
+                    selected = JSON.parse(GM_getValue('bgshSearchOpts', '[]')) || [];
+                } catch (e2) { selected = []; }
+            }
+            selected = selected.map(String).filter(function(fid) { return availableFids.indexOf(fid) >= 0; });
+            return selected.length ? selected : availableFids.slice();
+        }
+
+        var items = getSearchResultItems();
+        var options = collectBoardOptions(items);
+        if (items.length === 0 || options.length === 0) return;
+
+        var availableFids = options.map(function(opt) { return opt.fid; });
+        var selectedFids = getStoredSelected(availableFids);
+
+        var panel = document.createElement('div');
+        panel.id = 'bgsh-search-result-filter';
+        panel.className = 'bgsh-search-result-filter';
+        if (GM_getValue('bgsh_search_result_filter_collapsed', false)) panel.classList.add('collapsed');
+        panel.innerHTML =
+            '<div class="bgsh-search-result-filter-header">' +
+            '<span>只看板块</span>' +
+            '<button type="button" class="bgsh-search-result-filter-collapse">' + (panel.classList.contains('collapsed') ? '展开' : '收起') + '</button>' +
+            '</div>' +
+            '<div class="bgsh-search-result-filter-actions">' +
+            '<button type="button" data-action="all">全选</button>' +
+            '<button type="button" data-action="none">全不选</button>' +
+            '<button type="button" data-action="invert">反选</button>' +
+            '</div>' +
+            '<div class="bgsh-search-result-filter-body">' +
+            options.map(function(opt) {
+                return '<label class="bgsh-search-result-filter-item" title="' + opt.label.replace(/"/g, '&quot;') + '">' +
+                    '<input type="checkbox" value="' + opt.fid + '">' +
+                    '<span class="bgsh-search-result-filter-label">' + opt.label + '</span>' +
+                    '</label>';
+            }).join('') +
+            '</div>' +
+            '<div class="bgsh-search-result-filter-count"></div>';
+        document.body.appendChild(panel);
+
+        var checkboxes = Array.from(panel.querySelectorAll('input[type="checkbox"]'));
+        checkboxes.forEach(function(cb) { cb.checked = selectedFids.indexOf(cb.value) >= 0; });
+
+        function applyDynamicFilter() {
+            items = getSearchResultItems();
+            collectBoardOptions(items);
+            var checked = checkboxes.filter(function(cb) { return cb.checked; }).map(function(cb) { return cb.value; });
+            GM_setValue('bgsh_search_result_filter_fids', JSON.stringify(checked));
+            var visible = 0;
+            items.forEach(function(item) {
+                var fid = item.dataset.bgshSearchResultFid || findItemFid(item);
+                var show = !fid || checked.indexOf(fid) >= 0;
+                item.style.display = show ? '' : 'none';
+                item.dataset.bgshBoardFiltered = show ? '0' : '1';
+                if (show) visible++;
+            });
+            var countEl = panel.querySelector('.bgsh-search-result-filter-count');
+            if (countEl) countEl.textContent = '显示 ' + visible + '/' + items.length + ' 条结果，' + checked.length + '/' + options.length + ' 个板块';
+        }
+
+        panel.addEventListener('change', function(e) {
+            if (e.target.matches('input[type="checkbox"]')) applyDynamicFilter();
+        });
+        panel.addEventListener('click', function(e) {
+            var actionBtn = e.target.closest('[data-action]');
+            if (actionBtn) {
+                var action = actionBtn.dataset.action;
+                checkboxes.forEach(function(cb) {
+                    if (action === 'all') cb.checked = true;
+                    else if (action === 'none') cb.checked = false;
+                    else if (action === 'invert') cb.checked = !cb.checked;
+                });
+                applyDynamicFilter();
+                return;
+            }
+            var collapseBtn = e.target.closest('.bgsh-search-result-filter-collapse');
+            if (collapseBtn) {
+                var collapsed = panel.classList.toggle('collapsed');
+                collapseBtn.textContent = collapsed ? '展开' : '收起';
+                GM_setValue('bgsh_search_result_filter_collapsed', collapsed);
             }
         });
 
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        window.addEventListener('load', function() {
-            setTimeout(hideNonMatching, 500);
+        var observer = new MutationObserver(function(mutations) {
+            var hasRelevantChanges = mutations.some(function(m) { return m.type === 'childList' && m.addedNodes.length > 0; });
+            if (hasRelevantChanges) {
+                clearTimeout(window._98tFilterTimer);
+                window._98tFilterTimer = setTimeout(applyDynamicFilter, 200);
+            }
         });
+        observer.observe(document.querySelector('.searchresult, #threadlist, .tl, .bm_c, .mainbox') || document.body, { childList: true, subtree: true });
+        applyDynamicFilter();
     }
     // #endregion
 
