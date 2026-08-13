@@ -1307,18 +1307,18 @@
                 gap: 8px;
                 padding: 12px;
                 border-radius: 18px;
-                border: 1px solid rgba(0,0,0,0.08);
-                background: rgba(255,255,255,0.82);
-                box-shadow: 0 12px 38px rgba(31,45,61,0.16);
-                backdrop-filter: blur(18px);
-                -webkit-backdrop-filter: blur(18px);
+                border: 1px solid transparent;
+                background: transparent;
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
                 font-family: var(--bgsh-font);
                 box-sizing: border-box;
             }
             [data-bgsh-theme="dark"] .bgsh-search-result-filter {
-                background: rgba(26,26,30,0.86);
-                border-color: var(--bgsh-border-dark);
-                box-shadow: 0 12px 42px rgba(0,0,0,0.45);
+                background: transparent;
+                border-color: transparent;
+                box-shadow: none;
             }
             .bgsh-search-result-filter-header {
                 display: flex;
@@ -1343,13 +1343,13 @@
                 border: 0;
                 border-radius: 12px;
                 padding: 4px 8px;
-                background: rgba(247,151,30,0.12);
+                background: rgba(255,255,255,0.28);
                 color: #9a5a05;
                 font-size: 11px;
                 cursor: pointer;
             }
             .bgsh-search-result-filter-actions button:hover,
-            .bgsh-search-result-filter-collapse:hover { background: rgba(247,151,30,0.22); }
+            .bgsh-search-result-filter-collapse:hover { background: rgba(247,151,30,0.18); }
             .bgsh-search-result-filter-body {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5324,31 +5324,23 @@
         }
 
         function collectBoardOptions(items) {
-            var seen = {};
-            var options = [];
             items.forEach(function(item) {
-                var fid = findItemFid(item);
-                item.dataset.bgshSearchResultFid = fid;
-                if (!fid || seen[fid]) return;
-                seen[fid] = true;
-                options.push({ fid: fid, label: getBoardName(fid) || ('fid=' + fid) });
+                item.dataset.bgshSearchResultFid = findItemFid(item);
             });
-            options.sort(function(a, b) { return a.label.localeCompare(b.label, 'zh-Hans-CN'); });
-            return options;
+            return DEFAULT_TID_OPTIONS.map(function(opt) {
+                return { fid: String(opt.value), label: opt.label };
+            });
         }
 
         function getStoredSelected(availableFids) {
+            var raw = GM_getValue('bgsh_search_result_filter_all_fids', null);
+            if (raw === null || raw === undefined || raw === '') return availableFids.slice();
             var selected;
             try {
-                selected = JSON.parse(GM_getValue('bgsh_search_result_filter_fids', '[]')) || [];
-            } catch (e) { selected = []; }
-            if (selected.length === 0) {
-                try {
-                    selected = JSON.parse(GM_getValue('bgshSearchOpts', '[]')) || [];
-                } catch (e2) { selected = []; }
-            }
-            selected = selected.map(String).filter(function(fid) { return availableFids.indexOf(fid) >= 0; });
-            return selected.length ? selected : availableFids.slice();
+                selected = JSON.parse(raw);
+            } catch (e) { selected = availableFids.slice(); }
+            if (!Array.isArray(selected)) selected = availableFids.slice();
+            return selected.map(String).filter(function(fid) { return availableFids.indexOf(fid) >= 0; });
         }
 
         var items = getSearchResultItems();
@@ -5390,7 +5382,7 @@
             items = getSearchResultItems();
             collectBoardOptions(items);
             var checked = checkboxes.filter(function(cb) { return cb.checked; }).map(function(cb) { return cb.value; });
-            GM_setValue('bgsh_search_result_filter_fids', JSON.stringify(checked));
+            GM_setValue('bgsh_search_result_filter_all_fids', JSON.stringify(checked));
             var visible = 0;
             items.forEach(function(item) {
                 var fid = item.dataset.bgshSearchResultFid || findItemFid(item);
