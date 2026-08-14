@@ -383,27 +383,37 @@
                 overflow-y: auto;
                 padding: 4px 0;
             }
-            .bgsh-toolbar .bgsh-customBtn {
+            .bgsh-toolbar .bgsh-customBtn,
+            .bgsh-toolbar .bgsh-quickReplyToPostBtn,
+            .bgsh-toolbar .bgsh-quickGradeToPostBtn {
+                box-sizing: border-box;
                 width: auto;
                 min-width: 44px;
+                height: 34px;
                 padding: 6px 12px;
                 border-radius: 10px;
                 font-size: 13px;
+                font-weight: 500;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
                 background: linear-gradient(135deg, #f7971e, #ffd200);
                 color: #3d2a1a;
                 transition: all 0.3s ease;
                 margin: 0;
+                float: none;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 white-space: nowrap;
             }
-            .bgsh-toolbar .bgsh-customBtn:hover {
+            .bgsh-toolbar .bgsh-customBtn:hover,
+            .bgsh-toolbar .bgsh-quickReplyToPostBtn:hover,
+            .bgsh-toolbar .bgsh-quickGradeToPostBtn:hover {
                 transform: translateY(-2px);
                 box-shadow: var(--bgsh-shadow-hover);
             }
-            .bgsh-toolbar .bgsh-customBtn:active {
+            .bgsh-toolbar .bgsh-customBtn:active,
+            .bgsh-toolbar .bgsh-quickReplyToPostBtn:active,
+            .bgsh-toolbar .bgsh-quickGradeToPostBtn:active {
                 transform: scale(0.96);
             }
             .bgsh-toolbar::-webkit-scrollbar { width: 3px; }
@@ -1049,6 +1059,35 @@
                 box-shadow: 0 32px 80px rgba(0,0,0,0.5);
                 animation: bgshZoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
+            /* ----- 关闭头像时压缩回帖楼层空白 ----- */
+            body.bgsh-hide-avatar .avatar {
+                display: none !important;
+            }
+            body.bgsh-hide-avatar .plhin,
+            body.bgsh-hide-avatar .plhin .pls,
+            body.bgsh-hide-avatar .plhin .plc,
+            body.bgsh-hide-avatar .plhin .pct,
+            body.bgsh-hide-avatar .plhin .pcb {
+                min-height: 0 !important;
+                height: auto !important;
+                padding-bottom: 0 !important;
+            }
+            body.bgsh-hide-avatar .plhin .pct {
+                margin-bottom: 0 !important;
+            }
+            body.bgsh-hide-avatar .plhin .a_pt,
+            body.bgsh-hide-avatar .plhin .a_pr,
+            body.bgsh-hide-avatar .plhin .ad,
+            body.bgsh-hide-avatar .plhin .adthread,
+            body.bgsh-hide-avatar .plhin [id^="ad_thread"],
+            body.bgsh-hide-avatar .plhin [id^="ad_interthread"] {
+                display: none !important;
+            }
+            body.bgsh-hide-avatar .plhin .pcb:empty,
+            body.bgsh-hide-avatar .plhin .t_f:empty {
+                display: none !important;
+            }
+
             /* ----- 紧凑型主题预览图 ----- */
             .bgsh-pt {
                 display: flex !important;
@@ -4046,9 +4085,13 @@
     function showAvatarEvent() {
         const avatars = document.querySelectorAll(".avatar");
         const isPostPage = () => /forum\.php\?mod=viewthread|\/thread-\d+-\d+-\d+\.html/.test(window.location.href);
-        if (!isPostPage()) return;
+        if (!isPostPage()) {
+            document.body.classList.remove("bgsh-hide-avatar");
+            return;
+        }
 
         var settings = getSettings();
+        document.body.classList.toggle("bgsh-hide-avatar", !settings.showAvatar);
         avatars.forEach((avatar) => {
             avatar.style.display = settings.showAvatar ? "block" : "none";
         });
@@ -7559,7 +7602,6 @@ async function baseFunction(settings) {
         var pvBtn = document.createElement("button");
         pvBtn.id = "bgshPreviewSizeBtn";
         pvBtn.className = "bgsh-customBtn";
-        pvBtn.style.cssText = "font-size:11px;min-width:40px;padding:4px 8px;";
         pvBtn.textContent = "\uD83D\uDDBC\uFE0F \u6700\u5927" + pvSize + "px";
         pvBtn.title = "\u8BBE\u7F6E\u9884\u89C8\u56FE\u6700\u5927\u5BBD\u9AD8\uFF0C\u6309\u539F\u56FE\u6BD4\u4F8B\u663E\u793A\uFF0C\u5355\u51FB\u5207\u6362\uFF0C\u53CC\u51FB\u8F93\u5165\uFF0C\u6EDA\u8F6E\u5FAE\u8C03";
         var previewClickTimer = null;
