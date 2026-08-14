@@ -1059,6 +1059,35 @@
                 box-shadow: 0 32px 80px rgba(0,0,0,0.5);
                 animation: bgshZoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
+            /* ----- 关闭头像时压缩回帖楼层空白 ----- */
+            body.bgsh-hide-avatar .avatar {
+                display: none !important;
+            }
+            body.bgsh-hide-avatar .plhin,
+            body.bgsh-hide-avatar .plhin .pls,
+            body.bgsh-hide-avatar .plhin .plc,
+            body.bgsh-hide-avatar .plhin .pct,
+            body.bgsh-hide-avatar .plhin .pcb {
+                min-height: 0 !important;
+                height: auto !important;
+                padding-bottom: 0 !important;
+            }
+            body.bgsh-hide-avatar .plhin .pct {
+                margin-bottom: 0 !important;
+            }
+            body.bgsh-hide-avatar .plhin .a_pt,
+            body.bgsh-hide-avatar .plhin .a_pr,
+            body.bgsh-hide-avatar .plhin .ad,
+            body.bgsh-hide-avatar .plhin .adthread,
+            body.bgsh-hide-avatar .plhin [id^="ad_thread"],
+            body.bgsh-hide-avatar .plhin [id^="ad_interthread"] {
+                display: none !important;
+            }
+            body.bgsh-hide-avatar .plhin .pcb:empty,
+            body.bgsh-hide-avatar .plhin .t_f:empty {
+                display: none !important;
+            }
+
             /* ----- 紧凑型主题预览图 ----- */
             .bgsh-pt {
                 display: flex !important;
@@ -4056,9 +4085,13 @@
     function showAvatarEvent() {
         const avatars = document.querySelectorAll(".avatar");
         const isPostPage = () => /forum\.php\?mod=viewthread|\/thread-\d+-\d+-\d+\.html/.test(window.location.href);
-        if (!isPostPage()) return;
+        if (!isPostPage()) {
+            document.body.classList.remove("bgsh-hide-avatar");
+            return;
+        }
 
         var settings = getSettings();
+        document.body.classList.toggle("bgsh-hide-avatar", !settings.showAvatar);
         avatars.forEach((avatar) => {
             avatar.style.display = settings.showAvatar ? "block" : "none";
         });
